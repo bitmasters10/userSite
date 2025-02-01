@@ -12,10 +12,24 @@ $longitude = isset($_GET['longitude']) ? $_GET['longitude'] : '';
 
 require_once '../config/database.php'; 
 
-
-$book_id = null;
 $user_id = 20;
 //$user_id = $_SESSION['user_id']; // Get user_id from session
+
+$query = "SELECT PICKUP_LOC FROM BOOKING WHERE USER_ID = ?";
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result->num_rows > 0) {
+    $row = $result->fetch_assoc();
+    $current_address = $row['PICKUP_LOC'];
+} else {
+    $current_address = "No address available.";
+}
+$stmt->close();
+
+$book_id = null;
 
 $query = "SELECT BOOK_ID FROM BOOKING WHERE USER_ID = ?";
 $stmt = $conn->prepare($query);
@@ -41,7 +55,8 @@ $conn->close();
     <title>Dashboard</title>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="../scripts/mapSocket.js"></script>
 </head>
 <body>
 <div class="top-bar">
@@ -56,8 +71,9 @@ $conn->close();
         <div id="map"></div>
 
         <div class="info-box">
-            <label for="address">Current Address:</label>
-            <input type="text" id="address" value="<?= htmlspecialchars($address) ?>" readonly>
+        <label for="address">Current Address:</label>
+<input type="text" id="address" value="<?= htmlspecialchars($address ?: $current_address) ?>" readonly>
+
             <div class="info-container">
                 <div class="tooltip"><i style="font-size:24px" class="fa">&#xf05a;</i>
                     <span class="tooltiptext">If you want to change your pickup location you can click the button to update your address</span>
@@ -70,11 +86,11 @@ $conn->close();
             <label for="otp">OTP:</label>
             <input type="text" id="otp" readonly>
             <!-- <?php echo $user_id ?> -->
-            <input type="hidden" id="booking_id" vad=lue="<?php echo htmlspecialchars($book_id); ?>">
+            <input type="hidden" id="booking_id" value="<?php echo htmlspecialchars($book_id); ?>">
 
         </div>
     </div>
-    <script>
+    <script>    
     console.log(document.getElementById('booking_id').value);
 
     var map = L.map('map').setView([51.505, -0.09], 13);
@@ -83,18 +99,15 @@ $conn->close();
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // Check if latitude and longitude are set
     var latitude = <?php echo $latitude ? $latitude : 'null'; ?>;
     var longitude = <?php echo $longitude ? $longitude : 'null'; ?>;
 
     if (latitude && longitude) {
         var latlng = [latitude, longitude];
         
-        // Add a marker on the map at the provided latitude and longitude
         var marker = L.marker(latlng).addTo(map);
         marker.bindPopup("Selected Location: " + "<?php echo $address; ?>").openPopup();
-        
-        // Set the view of the map to the marker's position
+
         map.setView(latlng, 13);
     }
 </script>
