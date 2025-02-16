@@ -6,16 +6,11 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$address = isset($_GET['address']) ? $_GET['address'] : '';
-$latitude = isset($_GET['latitude']) ? $_GET['latitude'] : '';
-$longitude = isset($_GET['longitude']) ? $_GET['longitude'] : '';
-
-require_once '../config/database.php'; 
+require_once '../config/database.php';
 
 $user_id = 20;
 //$user_id = $_SESSION['user_id']; // Get user_id from session
-
-$query = "SELECT PICKUP_LOC FROM BOOKING WHERE USER_ID = ?";
+$query = "SELECT PICKUP_LOC, LATITUDE, LONGITUDE, BOOK_ID FROM BOOKING WHERE USER_ID = ?";
 $stmt = $conn->prepare($query);
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
@@ -24,21 +19,14 @@ $result = $stmt->get_result();
 if ($result->num_rows > 0) {
     $row = $result->fetch_assoc();
     $current_address = $row['PICKUP_LOC'];
+    $latitude = $row['LATITUDE'];
+    $longitude = $row['LONGITUDE'];
+    $book_id = $row['BOOK_ID'];
 } else {
     $current_address = "No address available.";
-}
-$stmt->close();
-
-$book_id = null;
-
-$query = "SELECT BOOK_ID FROM BOOKING WHERE USER_ID = ?";
-$stmt = $conn->prepare($query);
-$stmt->bind_param("s", $user_id);
-$stmt->execute();
-$stmt->bind_result($fetched_book_id);
-
-if ($stmt->fetch()) {
-    $book_id = $fetched_book_id; // Assign the fetched book_id
+    $latitude = null;
+    $longitude = null;
+    $book_id = null;
 }
 
 $stmt->close();
@@ -59,57 +47,68 @@ $conn->close();
     <script src="../scripts/mapSocket.js"></script>
 </head>
 <body>
+
 <div class="top-bar">
-        <h1>Welcome!</h1>
-        <p>Email: <?php echo htmlspecialchars($_SESSION['email']); ?></p>
-        <form action="../logout.php" method="post">
-            <button type="submit" class="logout-btn">Logout</button>
-        </form>
-    </div>
+    <h1>Welcome!</h1>
+    <p>Email: <?php echo htmlspecialchars($_SESSION['email']); ?></p>
+    <form action="../logout.php" method="post">
+        <button type="submit" class="logout-btn">Logout</button>
+    </form>
+</div>
+<div class="container">
+    <div id="map"></div>
 
-    <div class="container">
-        <div id="map"></div>
-
-        <div class="info-box">
+    <div class="info-box">
         <label for="address">Current Address:</label>
-<input type="text" id="address" value="<?= htmlspecialchars($address ?: $current_address) ?>" readonly>
+        <input type="text" id="address" value="<?= htmlspecialchars($current_address) ?>" readonly>
 
-            <div class="info-container">
-                <div class="tooltip"><i style="font-size:24px" class="fa">&#xf05a;</i>
-                    <span class="tooltiptext">If you want to change your pickup location you can click the button to update your address</span>
-                  </div>                  
-               
-                <p>Want to update your pickup location? Click below</p>
-            </div>
-            <a href="updateAdd.php"><button>Update Address</button></a>
-            
-            <label for="otp">OTP:</label>
-            <input type="text" id="otp" readonly>
-            <!-- <?php echo $user_id ?> -->
-            <input type="hidden" id="booking_id" value="<?php echo htmlspecialchars($book_id); ?>">
-
+        <div class="info-container">
+            <div class="tooltip"><i style="font-size:24px" class="fa">&#xf05a;</i>
+                <span class="tooltiptext">If you want to change your pickup location, click the button to update your address</span>
+            </div>                  
+            <p>Want to update your pickup location? Click below</p>
         </div>
-    </div>
-    <script>    
-    console.log(document.getElementById('booking_id').value);
+        <button id="updateAddressBtn">Update Address</button>
 
-    var map = L.map('map').setView([51.505, -0.09], 13);
+        <label for="otp">OTP:</label>
+        <input type="text" id="otp" readonly>
+
+        <input type="hidden" id="booking_id" value="<?= htmlspecialchars($book_id); ?>">    
+    </div>
+</div>
+
+<script>    
+    document.addEventListener("DOMContentLoaded", function () {
+        var bookId = document.getElementById('booking_id').value;
+        console.log("Booking ID:", bookId);
+
+        function redirectToUpdate() {
+            if (bookId) {
+                window.location.href = "updateAdd.html?book_id=" + bookId;
+            } else {
+                alert("No booking ID found.");
+            }
+        }
+
+        document.getElementById("updateAddressBtn").addEventListener("click", redirectToUpdate);
+    });
+
+    var map = L.map('map').setView([51.505, -0.09], 13); // Default view
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    var latitude = <?php echo $latitude ? $latitude : 'null'; ?>;
-    var longitude = <?php echo $longitude ? $longitude : 'null'; ?>;
+    <?php if ($latitude && $longitude): ?>
+        var latitude = <?= json_encode($latitude) ?>;
+        var longitude = <?= json_encode($longitude) ?>;
+        var currentAddress = <?= json_encode($current_address) ?>;
 
-    if (latitude && longitude) {
-        var latlng = [latitude, longitude];
-        
-        var marker = L.marker(latlng).addTo(map);
-        marker.bindPopup("Selected Location: " + "<?php echo $address; ?>").openPopup();
+        var marker = L.marker([latitude, longitude]).addTo(map)
+            .bindPopup(currentAddress).openPopup();
+        map.setView([latitude, longitude], 13);
+    <?php endif; ?>
 
-        map.setView(latlng, 13);
-    }
 </script>
 
 </body>

@@ -1,5 +1,5 @@
 console.log("rom rom");
-const socket = io("http://172.16.239.81:3001", {
+const socket = io("http://192.168.66.115:3001", {
     reconnectionDelayMax: 10000,
     transports: ['websocket', 'polling'] // Add transport options
 });
