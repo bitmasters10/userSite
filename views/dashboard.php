@@ -7,8 +7,14 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once '../config/database.php';
 
-$user_id = 35; // Replace with $_SESSION['user_id'] when using sessions
+// Initialize variables with default values
+$user_id = 36; // Replace with $_SESSION['user_id'] when using sessions
+$current_address = ""; 
+$book_id = ""; 
+$latitude = null;
+$longitude = null;
 
+// Fetch user bookings
 $query = "SELECT PICKUP_LOC, LATITUDE, LONGITUDE, BOOK_ID, DATE FROM BOOKING WHERE USER_ID = ?";
 $stmt = $conn->prepare($query);
 $stmt->bind_param("i", $user_id);
@@ -16,17 +22,17 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 $bookings = [];
-
 while ($row = $result->fetch_assoc()) {
     $bookings[] = $row;
+    
+    // If no current address is set, use the first booking's pickup location
+    if (empty($current_address)) {
+        $current_address = $row['PICKUP_LOC'];
+    }
 }
 
 $stmt->close();
 $conn->close();
-
-// Return bookings as a JSON array
-header('Content-Type: application/json');
-echo json_encode($bookings);
 ?>
 
 <!DOCTYPE html>
@@ -41,7 +47,6 @@ echo json_encode($bookings);
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
-    <script src="../scripts/mapSocket.js"></script>
 </head>
 <body>
 
@@ -57,7 +62,7 @@ echo json_encode($bookings);
 
     <div class="info-box">
         <label for="address">Current Address:</label>
-        <input type="text" id="address" value="<?= htmlspecialchars($current_address) ?>" readonly>
+        <input type="text" id="address" value="<?php echo htmlspecialchars($current_address); ?>" readonly>
 
         <div class="info-container">
             <div class="tooltip"><i style="font-size:24px" class="fa">&#xf05a;</i>
@@ -70,59 +75,93 @@ echo json_encode($bookings);
         <label for="otp">OTP:</label>
         <input type="text" id="otp" readonly>
 
-        <input type="hidden" id="booking_id" value="<?= htmlspecialchars($book_id); ?>">    
+        <input type="hidden" id="booking_id" value="<?php echo htmlspecialchars($book_id); ?>">    
     </div>
 </div>
 
-<script>    
-   document.addEventListener("DOMContentLoaded", function () {
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // Bookings data from PHP
+    const bookingsData = <?php echo json_encode($bookings); ?>;
+
+    // Map Initialization
+    var map = L.map('map').setView([19.0760, 72.8777], 13); // Default to Mumbai
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Socket Configuration
+    const socket = io("http://localhost:3001", {
+        reconnectionDelayMax: 10000,
+        transports: ["websocket", "polling"],
+    });
+    
+    socket.on("connect", () => {
+        console.log(`Connected: ${socket.id}`);
+    });
+    
+    socket.on("connect_error", (error) => {
+        console.error("Connection error:", error);
+    });
+
+    let room = "all";
     let selectedBookId = null;
+    let carMarker = null;
+
+    // Join global room on connection
+    socket.on("connect", () => {
+        socket.emit("room", room);
+    });
+
+    // Function to join booking-specific room
+    function joinBookingRoom(bookingId) {
+        if (!bookingId) return;
+
+        let bookingRoom = `${bookingId}`;
+        console.log(`Joining room: ${bookingRoom}`);
+        socket.emit("room", bookingRoom);
+    }
+
+    // Handle receiving car locations
+    socket.on("otherloc", (data) => {
+        console.log("Location received:", data);
+        markCar(data.lat, data.long);
+    });
+
+    // Function to mark car on map
+    function markCar(lat, long) {
+        const carIcon = L.icon({
+            iconUrl: "../assets/img/car.jpg",
+            iconSize: [50, 50],
+            iconAnchor: [25, 50],
+            popupAnchor: [0, -50],
+        });
+
+        if (carMarker) {
+            carMarker.setLatLng([lat, long]); // Update existing marker
+        } else {
+            carMarker = L.marker([lat, long], { icon: carIcon }).addTo(map);
+            carMarker.bindPopup("Car is here.").openPopup();
+        }
+    }
+
+    // OTP and Booking Logic
     let intervalId = null;
 
     function fetchOTP() {
         if (!selectedBookId) return;
-
-        const date = new Date().toISOString().split("T")[0]; // Format YYYY-MM-DD
-        fetch(`/user/book/${selectedBookId}/${date}`)
+console.log("test")
+        const date = new Date().toISOString().split("T")[0];
+        fetch(`http://localhost:3000/user/book/${selectedBookId}/${date}`)
             .then(response => response.json())
             .then(data => {
                 if (data.length > 0) {
                     document.getElementById("otp").value = data[0].OTP;
-                    clearInterval(intervalId); // Stop fetching once OTP is found
+                    clearInterval(intervalId);
                 }
             })
             .catch(error => console.error("Error fetching OTP:", error));
-    }
-    const socket = io("http://localhost:3001", {
-  reconnectionDelayMax: 10000,
-  transports: ["websocket", "polling"],
-});
-
-socket.on("connect", () => {
-  console.log(`Connected: ${socket.id}`);
-});
-    function loadBookings() {
-        fetch("loadBookings.php") // Load bookings from PHP
-            .then(response => response.json())
-            .then(bookings => {
-                if (bookings.length > 0) {
-                    createDropdown(bookings);
-                    
-                    // If only one booking, automatically select it
-                    if (bookings.length === 1) {
-                        selectedBookId = bookings[0].BOOK_ID;
-                        const dropdown = document.getElementById("bookingDropdown");
-                        dropdown.value = selectedBookId;
-                        
-                        // Trigger interval for OTP and join booking room
-                        intervalId = setInterval(fetchOTP, 30000);
-                        joinBookingRoom(selectedBookId);
-                    }
-                } else {
-                    console.log("No bookings found.");
-                }
-            })
-            .catch(error => console.error("Error fetching bookings:", error));
     }
 
     function createDropdown(bookings) {
@@ -146,99 +185,28 @@ socket.on("connect", () => {
         dropdown.addEventListener("change", function () {
             selectedBookId = this.value;
             if (intervalId) clearInterval(intervalId);
-            intervalId = setInterval(fetchOTP, 30000); // Fetch OTP every 30 seconds
+            intervalId = setInterval(fetchOTP, 30000);
             joinBookingRoom(selectedBookId);
         });
+
+        // If only one booking, auto-select
+        if (bookings.length === 1) {
+            dropdown.value = bookings[0].BOOK_ID;
+            dropdown.dispatchEvent(new Event('change'));
+        }
     }
 
-    loadBookings(); // Fetch bookings on page load
-});
+    // Initial dropdown creation if bookings exist
+    if (bookingsData.length > 0) {
+        createDropdown(bookingsData);
+    }
 
-// Existing socket and location handling code remains the same
-function joinBookingRoom(bookingId) {
-  if (!bookingId) return;
-
-  let bookingRoom = `booking_${bookingId}`;
-
-  console.log(`Joining room: ${bookingRoom}`);
-  socket.emit("rom", bookingRoom);
-}
-    var map = L.map('map').setView([51.505, -0.09], 13); // Default view
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-
-    <?php if ($latitude && $longitude): ?>
-        var latitude = <?= json_encode($latitude) ?>;
-        var longitude = <?= json_encode($longitude) ?>;
-        var currentAddress = <?= json_encode($current_address) ?>;
-
-        var marker = L.marker([latitude, longitude]).addTo(map)
-            .bindPopup(currentAddress).openPopup();
-        map.setView([latitude, longitude], 13);
-    <?php endif; ?>
-    console.log("rom rom");
-
-    const socket = io("http://localhost:3001", {
-  reconnectionDelayMax: 10000,
-  transports: ["websocket", "polling"],
-});
-
-socket.on("connect", () => {
-  console.log(`Connected: ${socket.id}`);
-});
-
-socket.on("connect_error", (error) => {
-  console.error("Connection error:", error);
-});
-
-let room = "all";
-socket.emit("room", room); // Join global room
-
-function joinBookingRoom(bookingId) {
-  if (!bookingId) return;
-
-  let bookingRoom = `booking_${bookingId}`;
-
-  console.log(`Joining room: ${bookingRoom}`);
-  socket.emit("room", bookingRoom);
-}
-
-// Handle receiving car locations from "all" and booking-specific rooms
-socket.on("otherloc", (data) => {
-  console.log("Location received:", data);
-  markCar(data.lat, data.long);
-});
-
-// Function to dynamically update the car marker
-let carMarker = null;
-function markCar(lat, long) {
-  const carIcon = L.icon({
-    iconUrl: "../assets/img/car.jpg",
-    iconSize: [50, 50],
-    iconAnchor: [25, 50],
-    popupAnchor: [0, -50],
-  });
-
-  if (carMarker) {
-    carMarker.setLatLng([lat, long]); // Update existing marker
-  } else {
-    carMarker = L.marker([lat, long], { icon: carIcon }).addTo(map);
-    carMarker.bindPopup("Car is here.").openPopup();
-  }
-}
-
-// Detect booking selection and join the room
-document.addEventListener("DOMContentLoaded", function () {
-  document
-    .getElementById("bookingDropdown")
-    ?.addEventListener("change", function () {
-      selectedBookId = this.value;
-      joinBookingRoom(selectedBookId);
+    // Update Address Button
+    document.getElementById('updateAddressBtn').addEventListener('click', function() {
+        // Implement address update logic here
+        alert('Address update functionality to be implemented');
     });
 });
-
 </script>
 
 </body>
