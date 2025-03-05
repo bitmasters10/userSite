@@ -12,37 +12,51 @@ include("../includes/header.html");
 <!DOCTYPE html>
 <html lang="en">
     <head>
+        
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="stylesheet" href="../assets/css/dashboard.css">
+        <!-- Load Bootstrap CSS first -->
+        <link rel="stylesheet" href="../assets/css/bootstrap.min.css">
+        <link rel="stylesheet" href="../assets/css/bootstrap-slider.css">
+        <link rel="stylesheet" href="../assets/css/jquery-ui.css">
+        <link rel="stylesheet" href="../assets/css/layerslider.css">
+        <link rel="stylesheet" href="../assets/css/color.css" id="color-change">
+        <link rel="stylesheet" href="../assets/css/owl.carousel.min.css">
+        <link rel="stylesheet" href="../assets/fonts/flaticon/flaticon.css">
+        
+        <!-- Load your custom CSS after Bootstrap -->
+        <link rel="stylesheet" href="../assets/css/package.css">
+        
+        <!-- Other external CSS -->
         <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-        <!-- Updated Font Awesome 5 Link -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-        <title>Dashboard</title>
-    
+        
+        <title>Package 1</title>
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="description" content="Real Estate PHP">
         <meta name="keywords" content="">
         <meta name="author" content="Unicoder">
         <link rel="shortcut icon" href="images/favicon.ico">
-        <!-- FOR MORE PROJECTS visit: codeastro.com -->
         <!-- Fonts -->
         <link href="https://fonts.googleapis.com/css?family=Muli:400,400i,500,600,700&amp;display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css?family=Comfortaa:400,700" rel="stylesheet">
-    
-        <!-- Css Link -->
-        <link rel="stylesheet" type="text/css" href="../assets/css/bootstrap.min.css">
-        <link rel="stylesheet" type="text/css" href="../assets/css/bootstrap-slider.css">
-        <link rel="stylesheet" type="text/css" href="../assets/css/jquery-ui.css">
-        <link rel="stylesheet" type="text/css" href="../assets/css/layerslider.css">
-        <link rel="stylesheet" type="text/css" href="../assets/css/color.css" id="color-change">
-        <link rel="stylesheet" type="text/css" href="../assets/css/owl.carousel.min.css">
-        <link rel="stylesheet" type="text/css" href="../assets/fonts/flaticon/flaticon.css">
-        <link rel="stylesheet" type="text/css" href="../assets/css/style.css">
     </head>
 <body style="background-color: var(--secondary-color);">
     <div id="page-wrapper">
         <div class="row"> 
+
+
+            <div class="banner-full-row page-banner" style="background-image:url('../assets/img/full_day_city.webp'); background-repeat: no-repeat; background-size: cover; filter: brightness(0.7);">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-md-10">
+                            <h2 class="page-name float-left text-white text-uppercase mt-2 mb-0" style="color: white;"><b></b>Full Day Mumbai City Private Sightseeing Tour</h2>
+                        </div>
+                        <div class="col-md-6">
+                        </div>
+                    </div>
+                </div>
+            </div>
 
 <div class="full-row" style="background-color: var(--dashback-color);">
             <div class="container">

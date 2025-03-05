@@ -8,7 +8,7 @@ if (!isset($_SESSION['user_id'])) {
 require_once '../config/database.php';
 
 // Initialize variables with default values
-$user_id = 20; // Replace with $_SESSION['user_id'] when using sessions
+$user_id = 36; // Replace with $_SESSION['user_id'] when using sessions
 $current_address = ""; 
 $book_id = ""; 
 $latitude = null;
@@ -33,6 +33,7 @@ while ($row = $result->fetch_assoc()) {
 
 $stmt->close();
 $conn->close();
+include("../includes/header.html");
 ?>
 
 <!DOCTYPE html>
@@ -40,23 +41,15 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
+    <link rel="stylesheet" href="../assets/css/myBookings.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-    <title>Dashboard</title>
+    <title>My Bookings</title>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 </head>
 <body>
-
-<div class="top-bar">
-    <h1>Welcome!</h1>
-    <p>Email: <?php echo htmlspecialchars($_SESSION['email']); ?></p>
-    <form action="../logout.php" method="post">
-        <button type="submit" class="logout-btn">Logout</button>
-    </form>
-</div>
 <div class="container">
     <div id="map"></div>
 
@@ -81,7 +74,6 @@ $conn->close();
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    console.log("kala");
     // Bookings data from PHP
     const bookingsData = <?php echo json_encode($bookings); ?>;
 
@@ -119,7 +111,8 @@ document.addEventListener("DOMContentLoaded", function () {
     function joinBookingRoom(bookingId) {
         if (!bookingId) return;
 
-        let bookingRoom = ${bookingId};
+        let bookingRoom = `${bookingId}`;
+        console.log(`Joining room: ${bookingRoom}`);
         socket.emit("room", bookingRoom);
     }
 
@@ -178,7 +171,7 @@ console.log("test")
         bookings.forEach(booking => {
             let option = document.createElement("option");
             option.value = booking.BOOK_ID;
-            option.textContent = Booking ${booking.BOOK_ID} - ${booking.DATE};
+            option.textContent = `Booking ${booking.BOOK_ID} - ${booking.DATE}`;
             dropdown.appendChild(option);
         });
 
